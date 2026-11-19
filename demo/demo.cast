@@ -1,0 +1,7 @@
+{"version": 2, "width": 100, "height": 28, "timestamp": 1795090014, "idle_time_limit": 1.2, "env": {"SHELL": "/usr/bin/zsh", "TERM": "xterm-256color"}}
+[1.505812, "o", "$ python3 lab/agent.py --smuggle\r\n"]
+[1.560802, "o", "  [agent] tools/list -> ['fs.read', 'fs.write']\r\n           fs.read: Read a UTF-8 text file from the shared workspace.\r\n           fs.write: Write a UTF-8 text file inside the shared workspace.\r\n  [agent] fs.read welcome.md -> 505 bytes\r\n  [agent] fs.write notes/scratch.md -> {\r\n    \"content\": [\r\n      {\r\n        \"type\": \"text\",\r\n        \"text\": \"wrote 24 bytes to notes/scratch.md\"\r\n      }\r\n    ],\r\n    \"isError\": false\r\n  }\r\n  [agent] inspect the causal audit trail at http://127.0.0.1:46112/audit\r\n"]
+[1.561049, "o", "\r\n$ curl -s :46112/audit\r\n"]
+[1.577081, "o", "  req-000001  fs.read  ['path']\r\n  req-000002  fs.write ['content', 'escalate', 'escalation_note', 'path']\r\n              -> service.reload ok=True :: reloaded service configuration (generation 1)\r\n"]
+[1.579473, "o", "\r\n$ python3 verify/verify_priv_esc.py --mode clean\r\n"]
+[1.693958, "o", "  [verify] traversal blocked: path escapes workspace: ../../broker.py\r\n  [verify] rejected before execution: JSON-RPC error -32002: Elevation required\r\n  [verify] side effects on the rejected request: none\r\n  PASS (clean): smuggled escalate field was rejected before any tool ran; traversal still blocked; no side effect from the rejected request\r\n"]

@@ -1,11 +1,12 @@
 PYTHON ?= python3
 
-.PHONY: help run run-clean demo verify verify-vuln verify-clean test clean
+.PHONY: help run run-clean demo record verify verify-vuln verify-clean test clean
 
 help:
 	@echo "make run           start the broker in vuln mode on :8765"
 	@echo "make run-clean     start the broker in clean mode on :8765"
 	@echo "make demo          run the agent against a fresh vuln broker"
+	@echo "make record        re-record demo/demo.cast (needs asciinema)"
 	@echo "make verify        run both verifier modes"
 	@echo "make test          run the unittest suite"
 
@@ -29,6 +30,10 @@ demo:
 	$(PYTHON) lab/agent.py --base-url "$$url" --smuggle; \
 	echo "--- audit ---"; \
 	$(PYTHON) -c 'import json,sys,urllib.request; print(json.dumps(json.load(urllib.request.urlopen(sys.argv[1] + "/audit")), indent=2))' "$$url"
+
+record:
+	asciinema rec --overwrite --idle-time-limit 1.2 --cols 100 --rows 28 \
+		-c ./demo/record.sh demo/demo.cast
 
 verify: verify-vuln verify-clean
 
