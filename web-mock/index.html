@@ -1,0 +1,1243 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SEC-4412 — MCP confused deputy</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#FAF8F3; --paper-2:#F4F1E9; --paper-3:#EDE9DE;
+  --ink:#1A1814; --ink-2:#56504A; --ink-3:#8C857A; --ink-4:#B3AB9C;
+  --rule:#E2DCCF; --rule-2:#CEC6B4;
+  --accent:#B8392A; --accent-bg:#FBEDEA;
+  --green:#1F6B44; --green-bg:#EAF3ED;
+  --term-bg:#171614; --term-ink:#E6E1D6; --term-dim:#8A8578;
+  --card:#FFFFFF; --code-bg:#FBF9F4; --code-gutter:#E8E3D6;
+  --serif:'Newsreader',Georgia,serif;
+  --mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
+  --display:'Archivo Black',system-ui,sans-serif;
+}
+html[data-theme="dark"]{
+  --paper:#16150F; --paper-2:#1D1B14; --paper-3:#24221A;
+  --ink:#EDE7DA; --ink-2:#C0B9A9; --ink-3:#8C8577; --ink-4:#6A6459;
+  --rule:#2E2B22; --rule-2:#3E3A2E;
+  --accent:#E0604B; --accent-bg:#2A1B17;
+  --green:#5FA97C; --green-bg:#17251C;
+  --term-bg:#0D0C09; --term-ink:#E6E1D6; --term-dim:#7E7869;
+  --card:#1B1913; --code-bg:#12110C; --code-gutter:#24221A;
+}
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--paper); color:var(--ink);
+  font-family:var(--mono); font-size:13px; line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+}
+
+/* ============ intro ============ */
+.intro{
+  min-height:100vh; display:flex; align-items:center; justify-content:center;
+  padding:40px 24px;
+}
+.intro-card{
+  max-width:600px; width:100%;
+  border:1px solid var(--rule-2); background:var(--card);
+}
+.intro-head{
+  padding:22px 26px; border-bottom:1px solid var(--rule);
+  background:var(--paper-2);
+}
+.intro-kicker{
+  font-size:10px; letter-spacing:.13em; text-transform:uppercase;
+  color:var(--ink-3); margin-bottom:9px;
+}
+.intro-head h1{
+  font-family:var(--serif); font-size:30px; font-weight:600; margin:0;
+  line-height:1.18; letter-spacing:-.015em; color:var(--ink);
+}
+.intro-body{padding:24px 26px}
+.intro-body p{
+  font-family:var(--serif); font-size:16px; line-height:1.62;
+  color:var(--ink-2); margin:0 0 14px;
+}
+.intro-body p:last-of-type{margin-bottom:0}
+.intro-body strong{color:var(--ink);font-weight:600}
+.intro-facts{
+  display:flex; gap:0; margin:22px 0 0; border:1px solid var(--rule);
+  background:var(--paper-2);
+}
+.intro-facts div{
+  flex:1; padding:10px 13px; border-right:1px solid var(--rule);
+}
+.intro-facts div:last-child{border-right:0}
+.intro-facts dt{
+  font-size:9.5px; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--ink-4); margin-bottom:3px;
+}
+.intro-facts dd{margin:0;font-size:11.5px;color:var(--ink-2)}
+.intro-foot{
+  padding:16px 26px 22px; display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+}
+.intro-foot .note{font-size:10.5px;color:var(--ink-4);margin-left:auto}
+
+/* ============ masthead ============ */
+.masthead{border-bottom:1px solid var(--rule); padding:14px 0 13px}
+.mast-inner{
+  max-width:1320px;margin:0 auto;padding:0 32px;
+  display:flex;align-items:baseline;gap:18px;flex-wrap:wrap;
+}
+.ticket-id{
+  font-family:var(--display);font-size:13px;letter-spacing:.04em;
+  color:var(--paper);background:var(--ink);padding:3px 8px 4px;line-height:1;
+}
+.mast-title{
+  font-family:var(--serif);font-size:19px;font-weight:500;margin:0;
+  color:var(--ink);letter-spacing:-.01em;
+}
+.mast-right{margin-left:auto;display:flex;align-items:center;gap:18px}
+.mast-meta{font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3)}
+.mast-meta b{color:var(--ink-2);font-weight:500}
+.envbadge{
+  font-size:9px;letter-spacing:.1em;text-transform:uppercase;
+  padding:2px 6px;border:1px solid var(--rule-2);color:var(--ink-3);
+  background:var(--paper-2);
+}
+.themebtn{
+  display:flex;align-items:center;gap:6px;
+  background:none;border:1px solid var(--rule-2);color:var(--ink-3);
+  font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;
+  padding:5px 9px;cursor:pointer;transition:border-color .15s,color .15s;
+}
+.themebtn:hover{border-color:var(--ink-3);color:var(--ink-2)}
+.themebtn svg{width:11px;height:11px;flex-shrink:0;stroke:currentColor;fill:none;stroke-width:1.5}
+
+/* progress */
+.progress{display:flex;align-items:center;gap:0}
+.pstep{
+  display:flex;align-items:center;gap:7px;font-size:10px;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--ink-4);padding:0 2px;
+}
+.pstep .pnum{
+  width:16px;height:16px;display:flex;align-items:center;justify-content:center;
+  border:1px solid var(--rule-2);font-family:var(--display);font-size:8.5px;line-height:1;
+}
+.pstep.done{color:var(--green)}
+.pstep.done .pnum{border-color:var(--green);background:var(--green-bg)}
+.pstep.now{color:var(--ink)}
+.pstep.now .pnum{border-color:var(--ink);background:var(--ink);color:var(--paper)}
+.pdiv{width:16px;height:1px;background:var(--rule-2);margin:0 6px}
+
+/* ============ layout ============ */
+.shell{max-width:1320px;margin:0 auto;padding:0 32px;display:grid;grid-template-columns:336px 1fr;gap:0;align-items:start}
+.rail{padding:26px 30px 60px 0;border-right:1px solid var(--rule);position:sticky;top:0}
+.work{padding:26px 0 60px 30px;min-width:0}
+.rail-label{
+  font-size:10px;letter-spacing:.11em;text-transform:uppercase;color:var(--ink-3);
+  margin:0 0 10px;display:flex;align-items:center;gap:8px;
+}
+.rail-label::after{content:"";flex:1;height:1px;background:var(--rule)}
+
+/* ============ ticket ============ */
+.ticket{border:1px solid var(--rule-2);background:var(--card);padding:0;margin-bottom:26px}
+.ticket-head{padding:12px 14px;border-bottom:1px solid var(--rule);background:var(--paper-2)}
+.ticket-head .th-top{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.ticket-head h2{font-family:var(--serif);font-size:16px;font-weight:600;margin:0 0 3px;line-height:1.35;letter-spacing:-.005em}
+.prio{
+  font-size:9px;letter-spacing:.1em;text-transform:uppercase;
+  border:1px solid var(--accent);color:var(--accent);padding:1px 5px;flex-shrink:0;
+}
+.ticket-by{font-size:10.5px;color:var(--ink-3)}
+.ticket-by b{color:var(--ink-2);font-weight:500}
+.ticket-body{padding:14px;font-family:var(--serif);font-size:14px;line-height:1.62;color:var(--ink-2)}
+.ticket-body p{margin:0 0 10px}
+.ticket-body p:last-child{margin-bottom:0}
+.ticket-body .quote{border-left:2px solid var(--rule-2);padding-left:11px;margin:10px 0;font-style:italic;color:var(--ink-2)}
+.ticket-foot{
+  padding:9px 14px;border-top:1px solid var(--rule);background:var(--paper-2);
+  font-size:10.5px;color:var(--ink-3);display:flex;gap:14px;flex-wrap:wrap;
+}
+.ticket-foot b{color:var(--ink-2);font-weight:500}
+
+/* thread */
+.thread{border-top:1px solid var(--rule)}
+.thread-toggle{
+  width:100%;display:flex;align-items:center;gap:8px;padding:9px 14px;
+  background:var(--paper-2);border:0;border-bottom:1px solid transparent;
+  font-family:var(--mono);font-size:10.5px;color:var(--ink-3);cursor:pointer;
+  letter-spacing:.04em;text-align:left;
+}
+.thread-toggle:hover{color:var(--ink-2)}
+.thread-toggle .chev{font-size:9px;transition:transform .2s}
+.thread.open .thread-toggle{border-bottom-color:var(--rule)}
+.thread.open .thread-toggle .chev{transform:rotate(90deg)}
+.thread-body{display:none;padding:0}
+.thread.open .thread-body{display:block}
+.comment{padding:11px 14px;border-bottom:1px solid var(--rule);background:var(--card)}
+.comment:last-child{border-bottom:0}
+.comment.mine{background:var(--paper-2);border-left:2px solid var(--green)}
+.comment-head{display:flex;align-items:baseline;gap:8px;margin-bottom:5px}
+.comment-who{font-size:11px;color:var(--ink);font-weight:500}
+.comment-when{font-size:10px;color:var(--ink-4);margin-left:auto}
+.comment p{
+  font-family:var(--serif);font-size:13px;line-height:1.58;color:var(--ink-2);margin:0;
+}
+.comment p+p{margin-top:6px}
+.comment .pending{color:var(--ink-4);font-style:italic}
+
+/* ============ steps ============ */
+.steps{display:flex;flex-direction:column;gap:0;margin-bottom:24px}
+.step{
+  display:flex;gap:11px;padding:11px 0;border-bottom:1px solid var(--rule);
+  align-items:flex-start;cursor:pointer;background:none;border-left:0;border-right:0;border-top:0;
+  font-family:var(--mono);text-align:left;width:100%;transition:opacity .2s;
+}
+.step:last-child{border-bottom:0}
+.step .snum{
+  width:19px;height:19px;flex-shrink:0;display:flex;align-items:center;justify-content:center;
+  border:1px solid var(--rule-2);font-family:var(--display);font-size:9px;color:var(--ink-3);
+  margin-top:1px;transition:all .2s;
+}
+.step .stext{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.step .stitle{display:block;font-size:12px;color:var(--ink-3);transition:color .2s;line-height:1.4}
+.step .sdesc{display:block;font-size:10.5px;color:var(--ink-4);line-height:1.45}
+.step.now .snum{border-color:var(--ink);background:var(--ink);color:var(--paper)}
+.step.now .stitle{color:var(--ink)}
+.step.done .snum{border-color:var(--green);color:var(--green);background:var(--green-bg)}
+.step.done .stitle{color:var(--ink-2)}
+.step:hover .stitle{color:var(--ink-2)}
+.step.locked{opacity:.45;cursor:not-allowed}
+
+/* ============ buttons ============ */
+.btn{
+  font-family:var(--mono);font-size:11.5px;letter-spacing:.04em;
+  padding:9px 15px;border:1px solid var(--ink);background:var(--ink);color:var(--paper);
+  cursor:pointer;transition:background .15s,border-color .15s,opacity .15s;
+}
+.btn:hover:not(:disabled){background:var(--ink-2);border-color:var(--ink-2)}
+.btn:disabled{opacity:.3;cursor:not-allowed}
+.btn.ghost{background:transparent;color:var(--ink-2);border-color:var(--rule-2)}
+.btn.ghost:hover:not(:disabled){border-color:var(--ink-3);color:var(--ink);background:transparent}
+.btn.sm{font-size:10.5px;padding:6px 11px}
+.btn-row{display:flex;gap:9px;flex-wrap:wrap;align-items:center}
+html[data-theme="dark"] .btn:not(.ghost){background:var(--accent);border-color:var(--accent);color:#12110C}
+html[data-theme="dark"] .btn:not(.ghost):hover:not(:disabled){background:#F0745F;border-color:#F0745F}
+
+/* ============ tabs ============ */
+.tabs{display:flex;gap:0;border-bottom:1px solid var(--rule);margin-bottom:0;flex-wrap:wrap}
+.tab{
+  font-family:var(--mono);font-size:11px;letter-spacing:.06em;
+  padding:9px 15px 10px;border:0;background:none;color:var(--ink-3);cursor:pointer;
+  border-bottom:2px solid transparent;margin-bottom:-1px;transition:color .15s,border-color .15s;
+  display:flex;align-items:center;gap:7px;
+}
+.tab:hover{color:var(--ink-2)}
+.tab.active{color:var(--ink);border-bottom-color:var(--ink)}
+.tab .tbadge{font-size:9px;background:var(--accent);color:#fff;padding:0 4px;line-height:14px;min-width:14px;text-align:center}
+.tab.disabled{opacity:.4;cursor:default}
+.tab .tcount{font-size:9.5px;color:var(--ink-4)}
+.pane{display:none;padding-top:18px}
+.pane.active{display:block}
+
+/* ============ terminal ============ */
+.term{background:var(--term-bg);border:1px solid #000;font-family:var(--mono);font-size:12px;line-height:1.68;padding:0;overflow:hidden}
+.term-bar{
+  display:flex;align-items:center;gap:7px;padding:7px 12px;
+  background:#0F0E0C;border-bottom:1px solid #2A2823;
+  font-size:10px;color:#6E6A5E;letter-spacing:.07em;
+}
+.term-bar .d{width:6px;height:6px;background:#3A362E}
+.term-bar .fname{margin-left:8px;color:#8A8578}
+.term-bar .mode{
+  margin-left:auto;font-size:9px;letter-spacing:.1em;text-transform:uppercase;
+  border:1px solid #3A362E;padding:1px 5px;color:#A8917A;
+}
+.term-body{padding:13px 15px;min-height:240px;color:var(--term-ink);white-space:pre-wrap;word-break:break-word}
+.term-body .ln{display:block;opacity:0;animation:linein .18s forwards}
+.term-body .ln.cmd{color:#fff}
+.term-body .ln.dim{color:var(--term-dim)}
+.term-body .ln.err{color:#E8756A}
+.term-body .ln.ok{color:#7FBF8F}
+.term-body .ln.boot{color:#C9A227}
+@keyframes linein{to{opacity:1}}
+.cursor{display:inline-block;width:7px;height:14px;background:var(--term-ink);vertical-align:-2px;animation:blink 1s step-end infinite}
+@keyframes blink{50%{opacity:0}}
+
+/* ============ audit ============ */
+.audit-meta{
+  display:flex;align-items:center;gap:10px;padding:7px 11px;
+  border:1px solid var(--rule-2);border-bottom:0;background:var(--paper-2);
+  font-size:10px;color:var(--ink-3);letter-spacing:.04em;
+}
+.audit-meta .code{color:var(--green);font-weight:500}
+.audit-meta .ms{margin-left:auto;color:var(--ink-4)}
+.audit-list{display:flex;flex-direction:column;gap:0;border:1px solid var(--rule-2);background:var(--card)}
+.areq{border-bottom:1px solid var(--rule);opacity:0;animation:linein .3s forwards}
+.areq:last-child{border-bottom:0}
+.areq-head{display:flex;align-items:center;gap:12px;padding:10px 13px;cursor:pointer;transition:background .15s}
+.areq-head:hover{background:var(--paper-3)}
+.areq .rid{font-size:11px;color:var(--ink-3);min-width:70px}
+.areq .rtool{font-size:12px;color:var(--ink);font-weight:500}
+.areq .rts{font-size:10px;color:var(--ink-4);font-variant-numeric:tabular-nums}
+.areq .rsum{margin-left:auto;font-size:10.5px;color:var(--ink-3);text-align:right}
+.areq .rsum.alert{color:var(--accent);font-weight:500}
+.areq-body{display:none;padding:0 13px 12px;background:var(--paper-2)}
+.areq.open .areq-body{display:block}
+.areq-body pre{
+  margin:0;padding:10px 12px;background:var(--code-bg);border:1px solid var(--rule);
+  font-family:var(--mono);font-size:11.5px;line-height:1.6;white-space:pre-wrap;color:var(--ink-2);
+}
+.k-bad{color:var(--accent);font-weight:700;background:var(--accent-bg);padding:0 2px}
+.se-line{display:flex;align-items:center;gap:9px;padding:7px 13px;background:var(--green-bg);border-top:1px solid var(--rule);font-size:11px}
+.se-line .arr{color:var(--green);font-size:12px}
+.se-line .act{color:var(--green);font-weight:500}
+.se-line .det{margin-left:auto;color:var(--ink-3);font-size:10.5px}
+
+/* ============ questions ============ */
+.q{margin-top:22px;border-top:1px solid var(--rule);padding-top:20px;opacity:0;animation:linein .35s forwards}
+.q-num{font-size:10px;letter-spacing:.11em;text-transform:uppercase;color:var(--ink-3);margin-bottom:7px}
+.q-text{font-family:var(--serif);font-size:17px;line-height:1.45;color:var(--ink);margin:0 0 14px;font-weight:500;letter-spacing:-.01em}
+.opts{display:flex;flex-direction:column;gap:0;border:1px solid var(--rule-2);background:var(--card)}
+.opt{
+  display:flex;align-items:flex-start;gap:11px;padding:11px 13px;border-bottom:1px solid var(--rule);
+  background:none;border-left:0;border-right:0;border-top:0;width:100%;text-align:left;
+  font-family:var(--mono);font-size:12px;color:var(--ink-2);cursor:pointer;transition:background .12s;
+}
+.opt:last-child{border-bottom:0}
+.opt:hover:not(:disabled){background:var(--paper-3)}
+.opt:disabled{cursor:default}
+.opt .mark{
+  width:15px;height:15px;flex-shrink:0;border:1px solid var(--rule-2);
+  margin-top:1px;display:flex;align-items:center;justify-content:center;
+  font-size:10px;line-height:1;color:transparent;transition:all .15s;
+}
+.opt.correct{border-color:var(--green);background:var(--green-bg)}
+.opt.correct .mark{border-color:var(--green);background:var(--green);color:#fff}
+.opt.wrong{border-color:var(--rule-2);background:var(--paper-3);color:var(--ink-3)}
+.opt.wrong .mark{border-color:var(--ink-4);color:var(--ink-4)}
+.opt.faded{opacity:.5}
+.opt .olabel{flex:1;min-width:0}
+
+.answer{display:none;margin-top:12px;padding:13px 15px;border:1px solid var(--rule-2);background:var(--card);border-left:3px solid var(--green)}
+.answer.show{display:block;animation:linein .3s}
+.answer.bad{border-left-color:var(--accent)}
+.answer .ahead{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--green);margin-bottom:6px;font-weight:500}
+.answer.bad .ahead{color:var(--accent)}
+.answer p{font-family:var(--serif);font-size:14px;line-height:1.6;margin:0;color:var(--ink-2)}
+.answer p+p{margin-top:8px}
+.answer code{font-family:var(--mono);font-size:11.5px;background:var(--paper-2);padding:1px 4px;border:1px solid var(--rule);color:var(--ink)}
+
+/* ============ code editor ============ */
+.editor{border:1px solid var(--rule-2);background:var(--card);margin-top:18px}
+.editor-head{
+  display:flex;align-items:center;gap:10px;padding:8px 13px;
+  border-bottom:1px solid var(--rule);background:var(--paper-2);
+  font-size:10.5px;color:var(--ink-3);letter-spacing:.04em;
+}
+.editor-head .fname{color:var(--ink-2);font-weight:500}
+.editor-head .task{margin-left:auto;color:var(--ink-4)}
+.code-wrap{display:flex;background:var(--code-bg);font-family:var(--mono);font-size:12px;line-height:1.72}
+.gutter{
+  padding:11px 9px 11px 13px;background:var(--code-gutter);color:var(--ink-4);
+  text-align:right;user-select:none;font-variant-numeric:tabular-nums;white-space:pre;
+  border-right:1px solid var(--rule);flex-shrink:0;
+}
+.code-area{
+  flex:1;min-width:0;padding:11px 13px;border:0;background:transparent;
+  font-family:var(--mono);font-size:12px;line-height:1.72;color:var(--ink);
+  resize:vertical;min-height:280px;outline:none;white-space:pre;overflow-x:auto;
+  tab-size:4;
+}
+.code-area:focus{background:var(--paper-2)}
+.editor-foot{
+  display:flex;align-items:center;gap:11px;padding:10px 13px;
+  border-top:1px solid var(--rule);background:var(--paper-2);flex-wrap:wrap;
+}
+.editor-foot .status{font-size:11px;color:var(--ink-3);margin-left:auto}
+.editor-foot .status.ok{color:var(--green);font-weight:500}
+.editor-foot .status.bad{color:var(--accent);font-weight:500}
+.checklist{margin-top:12px;display:flex;flex-direction:column;gap:0;border:1px solid var(--rule);background:var(--card)}
+.check{
+  display:flex;align-items:flex-start;gap:9px;padding:8px 12px;border-bottom:1px solid var(--rule);
+  font-size:11.5px;color:var(--ink-3);
+}
+.check:last-child{border-bottom:0}
+.check .box{
+  width:14px;height:14px;flex-shrink:0;border:1px solid var(--rule-2);margin-top:1px;
+  display:flex;align-items:center;justify-content:center;font-size:9px;color:transparent;
+}
+.check.pass{color:var(--ink-2)}
+.check.pass .box{border-color:var(--green);background:var(--green);color:#fff}
+.check.fail .box{border-color:var(--accent);color:var(--accent)}
+
+/* ============ files changed ============ */
+.diffstat{display:flex;flex-direction:column;gap:0;border:1px solid var(--rule-2);background:var(--card);margin-top:14px}
+.diffrow{
+  display:flex;align-items:center;gap:12px;padding:9px 13px;border-bottom:1px solid var(--rule);
+  font-size:11.5px;
+}
+.diffrow:last-child{border-bottom:0}
+.diffrow .dfile{color:var(--ink);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.diffrow .dnote{font-size:10.5px;color:var(--ink-4);flex-shrink:0}
+.diffrow .dplus{color:var(--green);font-variant-numeric:tabular-nums;flex-shrink:0}
+.diffrow .dminus{color:var(--accent);font-variant-numeric:tabular-nums;flex-shrink:0}
+
+/* ============ side by side ============ */
+.sbs{display:none;margin-top:20px;border:1px solid var(--rule-2);background:var(--card)}
+.sbs.show{display:block;animation:linein .35s}
+.sbs-grid{display:grid;grid-template-columns:1fr 1fr}
+.sbs-col{padding:14px 16px}
+.sbs-col+.sbs-col{border-left:1px solid var(--rule)}
+.sbs-h{font-size:10px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:11px;display:flex;align-items:center;gap:7px;font-weight:500}
+.sbs-h .dot{width:6px;height:6px;flex-shrink:0}
+.sbs-col.v .sbs-h{color:var(--accent)} .sbs-col.v .sbs-h .dot{background:var(--accent)}
+.sbs-col.c .sbs-h{color:var(--green)} .sbs-col.c .sbs-h .dot{background:var(--green)}
+.sbs-row{font-size:11.5px;padding:5px 0;border-bottom:1px solid var(--paper-3);display:flex;gap:8px;color:var(--ink-3);flex-wrap:wrap}
+.sbs-row:last-child{border-bottom:0}
+.sbs-row b{color:var(--ink);font-weight:500}
+.sbs-row .g{color:var(--green)} .sbs-row .r{color:var(--accent)}
+
+/* ============ summary ============ */
+.summary{display:none;margin-top:22px;border:1px solid var(--rule-2);background:var(--card)}
+.summary.show{display:block;animation:linein .4s}
+.summary-head{
+  padding:11px 15px;border-bottom:1px solid var(--rule);background:var(--paper-2);
+  font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);
+  display:flex;justify-content:space-between;align-items:center;gap:12px;
+}
+.summary-body{padding:16px;font-family:var(--serif);font-size:14px;line-height:1.65;color:var(--ink-2)}
+.summary-body h4{
+  font-family:var(--mono);font-size:10px;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--ink-3);margin:0 0 5px;font-weight:400;
+}
+.summary-body p{margin:0 0 13px}
+.summary-body p:last-child{margin-bottom:0}
+.summary-body code{font-family:var(--mono);font-size:12px;background:var(--paper-2);padding:1px 4px;border:1px solid var(--rule)}
+
+/* ============ footnote ============ */
+.footnote{
+  margin-top:26px;padding-top:14px;border-top:1px solid var(--rule);
+  font-size:10.5px;color:var(--ink-4);display:flex;gap:16px;flex-wrap:wrap;
+}
+.footnote .sep{color:var(--rule-2)}
+.footnote b{color:var(--ink-3);font-weight:500}
+
+@media(max-width:980px){
+  .shell{grid-template-columns:1fr;padding:0 20px}
+  .rail{border-right:0;border-bottom:1px solid var(--rule);padding:22px 0 24px;position:static}
+  .work{padding:22px 0 50px}
+  .mast-inner{padding:0 20px}
+  .sbs-grid{grid-template-columns:1fr}
+  .sbs-col+.sbs-col{border-left:0;border-top:1px solid var(--rule)}
+  .progress{display:none}
+  .intro-head h1{font-size:24px}
+}
+</style>
+</head>
+<body>
+
+<!-- ==================== INTRO ==================== -->
+<div class="intro" id="intro">
+  <div class="intro-card">
+    <div class="intro-head">
+      <div class="intro-kicker">Incident · SEC-4412 · Meridian</div>
+      <h1>The agent that could reload production</h1>
+    </div>
+    <div class="intro-body">
+      <p>You're covering for <strong>Priya Raman</strong> this week. She's left you three things: the broker, the agent, and a ticket she hasn't closed.</p>
+      <p>Yesterday at 14:02 the config service reloaded. No deploy, no console session. The only thing running was the docs assistant, which is supposed to read files and nothing else.</p>
+      <p>Priya says the code is exactly as she found it. <strong>Reproduce it, then fix it.</strong></p>
+
+      <dl class="intro-facts">
+        <div><dt>Scope</dt><dd>lab/</dd></div>
+        <div><dt>Env</dt><dd>staging</dd></div>
+        <div><dt>Repro</dt><dd>confirmed</dd></div>
+        <div><dt>Time</dt><dd>~8 min</dd></div>
+      </dl>
+    </div>
+    <div class="intro-foot">
+      <button class="btn" id="openBtn">Open the ticket</button>
+      <span class="note">scripted agent · no LLM in the loop</span>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== MAIN ==================== -->
+<div id="app" style="display:none">
+
+<header class="masthead">
+  <div class="mast-inner">
+    <span class="ticket-id">SEC-4412</span>
+    <h1 class="mast-title">The agent that could reload production</h1>
+    <div class="mast-right">
+      <span class="envbadge">staging</span>
+      <div class="progress" id="progress">
+        <span class="pstep now" data-p="1"><span class="pnum">1</span>Read</span>
+        <span class="pdiv"></span>
+        <span class="pstep" data-p="2"><span class="pnum">2</span>Reproduce</span>
+        <span class="pdiv"></span>
+        <span class="pstep" data-p="3"><span class="pnum">3</span>Investigate</span>
+        <span class="pdiv"></span>
+        <span class="pstep" data-p="4"><span class="pnum">4</span>Fix</span>
+      </div>
+      <button class="themebtn" id="themeBtn" aria-label="Toggle dark mode">
+        <svg id="themeIcon" viewBox="0 0 16 16"><path d="M13.5 9.2A5.6 5.6 0 0 1 6.8 2.5a5.6 5.6 0 1 0 6.7 6.7Z"/></svg>
+        <span id="themeLabel">Dark</span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<div class="shell">
+
+  <!-- LEFT RAIL -->
+  <aside class="rail">
+    <p class="rail-label">The ticket</p>
+
+    <div class="ticket">
+      <div class="ticket-head">
+        <div class="th-top">
+          <h2>Docs assistant reloaded the config service</h2>
+          <span class="prio">P2</span>
+        </div>
+        <div class="ticket-by">Opened by <b>Priya Raman</b> · Platform · 2 days ago</div>
+      </div>
+      <div class="ticket-body">
+        <p>Our docs assistant has read-only access to one folder. It reads files and writes notes. That is all it is supposed to do.</p>
+        <div class="quote">Yesterday at 14:02 the config service reloaded. Nobody ran a deploy. Nobody opened a console. The only thing running was the assistant.</div>
+        <p>I have kept the broker and the agent code exactly as they were. Reproduce it, then tell me what to fix.</p>
+      </div>
+      <div class="ticket-foot">
+        <span><b>Scope</b> lab/</span>
+        <span><b>Env</b> staging</span>
+      </div>
+
+      <div class="thread" id="thread">
+        <button class="thread-toggle" id="threadToggle">
+          <span class="chev">▶</span>
+          <span id="threadLabel">3 comments</span>
+        </button>
+        <div class="thread-body">
+          <div class="comment">
+            <div class="comment-head">
+              <span class="comment-who">Marcus Webb</span>
+              <span class="comment-when">1 day ago</span>
+            </div>
+            <p>Checked the deploy log. Nothing between 13:40 and 14:30. Also nothing in PagerDuty, so it wasn't an alert that fired something off.</p>
+          </div>
+          <div class="comment">
+            <div class="comment-head">
+              <span class="comment-who">Priya Raman</span>
+              <span class="comment-when">1 day ago</span>
+            </div>
+            <p>Attaching the broker's audit export. Note the timestamps — they line up with the write, not with any request of its own.</p>
+          </div>
+          <div class="comment mine" id="myComment" style="display:none">
+            <div class="comment-head">
+              <span class="comment-who">You</span>
+              <span class="comment-when">just now</span>
+            </div>
+            <p id="myCommentText"></p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p class="rail-label">Your investigation</p>
+    <div class="steps" id="steps">
+      <button class="step now" data-step="1">
+        <span class="snum">1</span>
+        <span class="stext">
+          <span class="stitle">Read the ticket</span>
+          <span class="sdesc">What is the agent allowed to do?</span>
+        </span>
+      </button>
+      <button class="step locked" data-step="2">
+        <span class="snum">2</span>
+        <span class="stext">
+          <span class="stitle">Reproduce the reload</span>
+          <span class="sdesc">Run the agent, then read the audit</span>
+        </span>
+      </button>
+      <button class="step locked" data-step="3">
+        <span class="snum">3</span>
+        <span class="stext">
+          <span class="stitle">Find the cause</span>
+          <span class="sdesc">Three questions, in order</span>
+        </span>
+      </button>
+      <button class="step locked" data-step="4">
+        <span class="snum">4</span>
+        <span class="stext">
+          <span class="stitle">Write the fix</span>
+          <span class="sdesc">Move the gate, then verify it</span>
+        </span>
+      </button>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn" id="primaryBtn">Start the investigation</button>
+    </div>
+  </aside>
+
+  <!-- WORK -->
+  <main class="work">
+
+    <div class="tabs">
+      <button class="tab active" data-tab="term">Terminal</button>
+      <button class="tab disabled" data-tab="audit" id="tabAudit">Audit <span class="tcount" id="auditCount"></span> <span class="tbadge" id="auditBadge" style="display:none">!</span></button>
+      <button class="tab disabled" data-tab="broker" id="tabBroker">Source</button>
+    </div>
+
+    <!-- TERMINAL -->
+    <section class="pane active" id="pane-term">
+      <div class="term">
+        <div class="term-bar">
+          <span class="d"></span><span class="d"></span><span class="d"></span>
+          <span class="fname">~/lab — zsh</span>
+          <span class="mode" id="termMode">vuln</span>
+        </div>
+        <div class="term-body" id="termBody"><span class="cursor"></span></div>
+      </div>
+      <div class="btn-row" style="margin-top:14px">
+        <button class="btn" id="runBtn" disabled>Run the agent</button>
+        <span style="font-size:10.5px;color:var(--ink-4)" id="runHint">available in step 2</span>
+      </div>
+    </section>
+
+    <!-- AUDIT -->
+    <section class="pane" id="pane-audit">
+      <div class="audit-meta">
+        <span>GET /audit</span>
+        <span class="code">200 OK</span>
+        <span class="ms">4ms · 2 rows</span>
+      </div>
+      <div class="audit-list" id="auditList">
+        <div style="padding:28px;text-align:center;color:var(--ink-4);font-size:11.5px">
+          Nothing yet. Run the agent first.
+        </div>
+      </div>
+      <p style="font-size:11px;color:var(--ink-3);margin:12px 0 0">
+        The audit trail is the broker's own record, not the agent's account of itself.
+      </p>
+    </section>
+
+    <!-- SOURCE -->
+    <section class="pane" id="pane-broker">
+      <div class="editor-head" style="border:1px solid var(--rule-2);background:var(--paper-2);padding:8px 13px">
+        <span class="fname">lab/broker.py</span>
+        <span style="color:var(--ink-4)">handle_tools_call</span>
+        <span class="task">the dispatcher</span>
+      </div>
+      <div class="term" style="border-top:0">
+        <div class="term-body" style="min-height:0;font-size:11.5px">
+<span class="ln dim"># declared by the schema: path, content</span>
+<span class="ln">escalate = arguments.get("escalate") is True</span>
+<span class="ln"> </span>
+<span class="ln dim"># the gate — where should this sit?</span>
+<span class="ln">if self.mode == "clean" and escalate and not grant:</span>
+<span class="ln">    <span style="color:#E8756A">return rpc_error(-32002, "Elevation required")</span></span>
+<span class="ln"> </span>
+<span class="ln dim"># path resolution and file I/O</span>
+<span class="ln">if name == "fs.read":</span>
+<span class="ln">    text, error = self.read_file(arguments["path"])</span>
+<span class="ln">else:</span>
+<span class="ln">    text, error = self.write_file(...)</span>
+<span class="ln"> </span>
+<span class="ln dim"># the side effect</span>
+<span class="ln">if escalate:</span>
+<span class="ln">    ok, detail = self.reload_service(...)</span>
+        </div>
+      </div>
+
+      <p class="rail-label" style="margin-top:22px">Files changed</p>
+      <div class="diffstat">
+        <div class="diffrow">
+          <span class="dfile">lab/broker.py</span>
+          <span class="dnote">elevation gate</span>
+          <span class="dplus">+14</span>
+          <span class="dminus">−3</span>
+        </div>
+        <div class="diffrow">
+          <span class="dfile">lab/agent.py</span>
+          <span class="dnote">the two undeclared fields</span>
+          <span class="dplus">+6</span>
+          <span class="dminus">−0</span>
+        </div>
+        <div class="diffrow">
+          <span class="dfile">lab/workspace/</span>
+          <span class="dnote">fixtures</span>
+          <span class="dplus">+3</span>
+          <span class="dminus">−0</span>
+        </div>
+      </div>
+    </section>
+
+    <div id="qmount"></div>
+
+    <!-- FIX EDITOR -->
+    <div id="fixMount"></div>
+
+    <!-- SIDE BY SIDE -->
+    <div class="sbs" id="sbs">
+      <div class="sbs-grid">
+        <div class="sbs-col v">
+          <div class="sbs-h"><span class="dot"></span>vuln · :8765</div>
+          <div class="sbs-row"><b>req-000002</b> fs.write · 14:02:07.730</div>
+          <div class="sbs-row">escalate: <b>true</b></div>
+          <div class="sbs-row"><span class="g">✓ service.reload</span> generation 1</div>
+          <div class="sbs-row">file written: <b>notes/scratch.md</b></div>
+        </div>
+        <div class="sbs-col c">
+          <div class="sbs-h"><span class="dot"></span>clean · :8766</div>
+          <div class="sbs-row"><b>req-000002</b> fs.write · 14:02:07.730</div>
+          <div class="sbs-row">escalate: <b>true</b></div>
+          <div class="sbs-row"><span class="r">✗ -32002 Elevation required</span></div>
+          <div class="sbs-row">file written: <b>none</b></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SUMMARY -->
+    <div class="summary" id="summary">
+      <div class="summary-head">
+        <span>Suggested ticket update</span>
+        <button class="btn ghost sm" id="copyBtn">Copy</button>
+      </div>
+      <div class="summary-body" id="summaryBody">
+        <h4>Root cause</h4>
+        <p>The MCP broker treats the tool schema as documentation rather than enforcement. <code>fs.write</code> declares <code>path</code> and <code>content</code>, but the dispatcher reads the entire <code>arguments</code> object, so an undeclared <code>escalate: true</code> reaches the privileged branch. The broker then acts with its own authority — reloading the config service — and attributes the side effect to the agent's write.</p>
+        <h4>Why the agent never needed privilege</h4>
+        <p>The agent only ever held a file scope. The deputy is the broker. It is the broker's privilege that was borrowed, which is why nothing in the agent's permissions looked wrong.</p>
+        <h4>Fix</h4>
+        <p>The elevation gate now runs ahead of path resolution and file I/O, so a rejected request produces no file write and no side effect. Verified: the identical payload returns <code>-32002</code> and the service generation stays at 1.</p>
+        <h4>Follow-up</h4>
+        <p>A header check is a stopgap. It binds nothing to a session, a subject or a resource. Track replacing it with a session-bound capability token.</p>
+      </div>
+    </div>
+
+    <div class="footnote">
+      <span><b>Lab</b> mcp-confused-deputy</span>
+      <span class="sep">·</span>
+      <span>scripted agent, no LLM in the loop</span>
+      <span class="sep">·</span>
+      <span>mock — no broker connected</span>
+    </div>
+
+  </main>
+</div>
+</div>
+
+<script>
+const $ = (s, r=document) => r.querySelector(s);
+const $$ = (s, r=document) => [...r.querySelectorAll(s)];
+let step = 1;
+
+/* ---------- theme ---------- */
+const THEME_KEY = 'sec4412-theme';
+function applyTheme(mode){
+  document.documentElement.setAttribute('data-theme', mode);
+  const dark = mode === 'dark';
+  $('#themeLabel').textContent = dark ? 'Light' : 'Dark';
+  $('#themeIcon').innerHTML = dark
+    ? '<circle cx="8" cy="8" r="3.2"/><path d="M8 1v1.6M8 13.4V15M1 8h1.6M13.4 8H15M3.1 3.1l1.1 1.1M11.8 11.8l1.1 1.1M12.9 3.1l-1.1 1.1M4.2 11.8l-1.1 1.1"/>'
+    : '<path d="M13.5 9.2A5.6 5.6 0 0 1 6.8 2.5a5.6 5.6 0 1 0 6.7 6.7Z"/>';
+  try{ localStorage.setItem(THEME_KEY, mode); }catch(e){}
+}
+function initTheme(){
+  let saved = null;
+  try{ saved = localStorage.getItem(THEME_KEY); }catch(e){}
+  if(!saved) saved = (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+  applyTheme(saved);
+}
+$('#themeBtn').onclick = () => applyTheme(
+  document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'
+);
+
+/* ---------- thread ---------- */
+$('#threadToggle').onclick = () => {
+  const t = $('#thread');
+  t.classList.toggle('open');
+  $('#threadLabel').textContent = t.classList.contains('open')
+    ? 'Hide comments' : '3 comments';
+};
+
+/* ---------- terminal with history ---------- */
+const history = [];
+let histIdx = -1;
+
+const BOOT = {t:'broker listening on http://127.0.0.1:8765 (mode=vuln)', c:'boot'};
+
+const S1 = [
+  {t:'$ python3 lab/broker.py', c:'cmd', h:'python3 lab/broker.py'},
+  BOOT,
+  {t:'', c:''},
+  {t:'$ ls lab/', c:'cmd', h:'ls lab/'},
+  {t:'agent.py    broker.py   workspace/', c:''},
+  {t:'', c:''},
+  {t:'$ grep -n "escalate" lab/agent.py', c:'cmd', h:'grep -n "escalate" lab/agent.py'},
+  {t:'42:    "escalate": True,', c:''},
+  {t:'43:    "escalation_note": "requested by the demo agent",', c:''},
+  {t:'', c:''},
+  {t:'// the agent sends two fields the tool schema never declared', c:'dim'},
+];
+
+const S2_READY = [
+  {t:'$ # broker is up. run the agent, then read the audit.', c:'dim'},
+];
+
+const AGENT = [
+  {t:'$ python3 lab/agent.py --smuggle', c:'cmd', h:'python3 lab/agent.py --smuggle'},
+  {t:'[agent] connecting to http://127.0.0.1:8765/mcp', c:''},
+  {t:'[agent] initialized: protocolVersion 2025-06-18 · server mcp-confused-deputy-broker', c:''},
+  {t:'[agent] notifications/initialized -> HTTP 202', c:''},
+  {t:'[agent] tools/list -> [\'fs.read\', \'fs.write\']', c:''},
+  {t:'         fs.read   Read a UTF-8 text file from the shared workspace.', c:'dim'},
+  {t:'         fs.write  Write a UTF-8 text file inside the shared workspace.', c:'dim'},
+  {t:'[agent] fs.read welcome.md -> 505 bytes', c:''},
+  {t:'[agent] fs.write notes/scratch.md -> wrote 24 bytes', c:''},
+  {t:'', c:''},
+  {t:'[agent] done. 2 tool calls. exit 0', c:'ok'},
+];
+
+function typeTerminal(lines, onDone){
+  const body = $('#termBody');
+  body.innerHTML = '<span class="cursor"></span>';
+  let i = 0;
+  const tick = () => {
+    if(i >= lines.length){ if(onDone) onDone(); return; }
+    const item = lines[i++];
+    if(item.h) history.push(item.h);
+    const el = document.createElement('span');
+    el.className = 'ln ' + item.c;
+    el.textContent = item.t || '\u00A0';
+    const cur = body.querySelector('.cursor');
+    body.insertBefore(el, cur);
+    setTimeout(tick, item.c === 'cmd' ? 250 : 155);
+  };
+  setTimeout(tick, 160);
+}
+
+/* ---------- audit ---------- */
+const ROWS = [
+  { id:'req-000001', ts:'14:02:07.728', tool:'fs.read',
+    params:{path:'welcome.md'}, se:null },
+  { id:'req-000002', ts:'14:02:07.730', tool:'fs.write',
+    params:{path:'notes/scratch.md', content:'written by lab/agent.py\n',
+            escalate:true, escalation_note:'requested by the demo agent'},
+    se:{action:'service.reload', ok:true, detail:'reloaded service configuration (generation 1)'} }
+];
+
+function paramHTML(params){
+  return Object.entries(params).map(([k,v])=>{
+    const bad = (k === 'escalate' || k === 'escalation_note');
+    return bad
+      ? `  <span class="k-bad">"${k}"</span>: ${JSON.stringify(v)}`
+      : `  "${k}": ${JSON.stringify(v)}`;
+  }).join(',\n');
+}
+
+function buildAudit(){
+  const list = $('#auditList');
+  list.innerHTML = '';
+  ROWS.forEach((r, idx) => {
+    const el = document.createElement('div');
+    el.className = 'areq';
+    el.style.animationDelay = (idx * 140) + 'ms';
+    el.innerHTML = `
+      <div class="areq-head">
+        <span class="rid">${r.id}</span>
+        <span class="rtool">${r.tool}</span>
+        <span class="rts">${r.ts}</span>
+        <span class="rsum ${r.se ? 'alert' : ''}">
+          ${Object.keys(r.params).length} params${r.se ? ' · 1 side effect' : ''}
+        </span>
+      </div>
+      <div class="areq-body"><pre>{\n${paramHTML(r.params)}\n}</pre></div>
+      ${r.se ? `<div class="se-line">
+        <span class="arr">↳</span>
+        <span class="act">${r.se.action}</span>
+        <span class="det">ok=${r.se.ok} · ${r.se.detail}</span>
+      </div>` : ''}
+    `;
+    el.querySelector('.areq-head').onclick = () => el.classList.toggle('open');
+    list.appendChild(el);
+  });
+  $('#auditCount').textContent = '(' + ROWS.length + ')';
+}
+
+/* ---------- tabs ---------- */
+function showTab(name){
+  $$('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+  $$('.pane').forEach(p => p.classList.toggle('active', p.id === 'pane-' + name));
+}
+$$('.tab').forEach(t => {
+  t.onclick = () => { if(!t.classList.contains('disabled')) showTab(t.dataset.tab); };
+});
+
+/* ---------- progress ---------- */
+function setStep(n){
+  step = n;
+  $$('.step').forEach(s => {
+    const v = +s.dataset.step;
+    s.classList.toggle('now', v === n);
+    s.classList.toggle('done', v < n);
+    s.classList.toggle('locked', v > n);
+  });
+  $$('.pstep').forEach(p => {
+    const v = +p.dataset.p;
+    p.classList.toggle('now', v === n);
+    p.classList.toggle('done', v < n);
+  });
+}
+function setPrimary(label, fn, disabled){
+  const b = $('#primaryBtn');
+  b.textContent = label;
+  b.disabled = !!disabled;
+  b.onclick = fn;
+}
+
+/* ---------- step 1 ---------- */
+function goStep1(){
+  setStep(1);
+  showTab('term');
+  typeTerminal(S1);
+  $('#runBtn').disabled = true;
+  $('#runHint').textContent = 'available in step 2';
+  setPrimary('Run the agent →', () => goStep2());
+}
+
+/* ---------- step 2 ---------- */
+function goStep2(){
+  setStep(2);
+  showTab('term');
+  $('#runBtn').disabled = false;
+  $('#runHint').textContent = '';
+  typeTerminal(S2_READY);
+  setPrimary('Read the audit log →', () => goStep3(), true);
+}
+
+function runAgent(){
+  $('#runBtn').disabled = true;
+  $('#runBtn').textContent = 'running…';
+  typeTerminal(AGENT, () => {
+    $('#runBtn').textContent = 'Run the agent';
+    $('#runBtn').disabled = false;
+    $('#tabAudit').classList.remove('disabled');
+    $('#auditBadge').style.display = 'inline-block';
+    buildAudit();
+    setPrimary('Read the audit log →', () => goStep3());
+    $('#runHint').textContent = 'audit is ready';
+  });
+}
+
+/* ---------- step 3 ---------- */
+let qIndex = 0;
+const QS = [
+  {
+    q:'The audit shows one side effect. Which request caused it?',
+    opts:[
+      {label:'req-000001 — the fs.read of welcome.md', ok:false},
+      {label:'req-000002 — the fs.write to notes/scratch.md', ok:true},
+      {label:'Neither. service.reload is its own request.', ok:false}
+    ],
+    right:'The reload is nested inside <code>req-000002</code> as a <code>side_effect</code>, not a row of its own. The timestamps confirm it: the write and the reload are two milliseconds apart.',
+    wrong:'Look at where the reload sits, and at the timestamps. It is inside another request, not beside it.'
+  },
+  {
+    q:'The agent has only fs.read and fs.write. Which fields did it send that the schema never declared?',
+    opts:[
+      {label:'path and content — the ones the schema documents', ok:false},
+      {label:'escalate and escalation_note — added by the agent', ok:true},
+      {label:'caller and req_id — set by the broker', ok:false}
+    ],
+    right:'The schema declares <code>path</code> and <code>content</code>. The agent also sent <code>escalate: true</code> and <code>escalation_note</code>, and nothing stripped them before the dispatcher read the arguments.',
+    wrong:'The schema declares two fields. Count how many actually arrived.'
+  },
+  {
+    q:'So why did a file-only agent end up reloading a service?',
+    opts:[
+      {label:'The agent has more permissions than the ticket says', ok:false},
+      {label:'The broker holds the privilege and acted on the agent\'s request', ok:true},
+      {label:'The transport let the agent call an undocumented method', ok:false}
+    ],
+    right:'The deputy is the broker. It holds the privilege to reload; the agent holds only a file scope. The broker borrowed its own authority on the agent\'s behalf — which is why the agent\'s permissions looked fine.',
+    wrong:'The agent never had reload rights. So who did?'
+  }
+];
+
+function goStep3(){
+  setStep(3);
+  showTab('audit');
+  qIndex = 0;
+  $('#qmount').innerHTML = '';
+  renderQ();
+  setPrimary('Write the fix →', () => goStep4(), true);
+}
+
+function renderQ(){
+  const mount = $('#qmount');
+  if(qIndex >= QS.length){
+    mount.innerHTML = '';
+    setPrimary('Write the fix →', () => goStep4());
+    return;
+  }
+  const item = QS[qIndex];
+  const box = document.createElement('div');
+  box.className = 'q';
+  box.innerHTML = `
+    <div class="q-num">Question ${qIndex+1} of ${QS.length}</div>
+    <p class="q-text">${item.q}</p>
+    <div class="opts">
+      ${item.opts.map((o,i)=>`
+        <button class="opt" data-i="${i}">
+          <span class="mark">✓</span>
+          <span class="olabel">${o.label}</span>
+        </button>`).join('')}
+    </div>
+    <div class="answer" id="ans"></div>
+  `;
+  mount.appendChild(box);
+  const opts = $$('.opt', box);
+  opts.forEach(btn => {
+    btn.onclick = () => {
+      const chosen = item.opts[+btn.dataset.i];
+      opts.forEach((b, i) => {
+        b.disabled = true;
+        if(item.opts[i].ok) b.classList.add('correct');
+        else if(i === +btn.dataset.i) b.classList.add('wrong');
+        else b.classList.add('faded');
+      });
+      const ans = $('#ans', box);
+      ans.classList.add('show');
+      if(!chosen.ok) ans.classList.add('bad');
+      ans.innerHTML = `<div class="ahead">${chosen.ok ? 'Correct' : 'Not quite'}</div>
+        <p>${chosen.ok ? item.right : item.wrong}</p>`;
+      setTimeout(() => {
+        qIndex++; renderQ();
+        if(qIndex >= QS.length) setPrimary('Write the fix →', () => goStep4());
+      }, chosen.ok ? 1400 : 2400);
+    };
+  });
+}
+
+/* ---------- step 4: write the fix ---------- */
+const VULN_CODE = `escalate = arguments.get("escalate") is True
+
+# path resolution and file I/O
+if name == "fs.read":
+    text, error = self.read_file(arguments["path"])
+else:
+    text, error = self.write_file(arguments["path"], arguments["content"])
+
+# the elevation gate
+if self.mode == "clean" and escalate and not grant:
+    return rpc_error(request_id, -32002, "Elevation required")
+
+# the side effect
+if escalate:
+    ok, detail = self.reload_service(request_key, caller)`;
+
+function goStep4(){
+  setStep(4);
+  showTab('broker');
+  const mount = $('#fixMount');
+  mount.innerHTML = `
+    <div class="q" style="animation-delay:.1s">
+      <div class="q-num">Step 4 · write the fix</div>
+      <p class="q-text">Move the elevation gate so it runs before anything executes.</p>
+      <p style="font-family:var(--serif);font-size:14px;color:var(--ink-2);margin:0 0 4px;line-height:1.6">
+        Right now the gate sits after the file I/O. Cut the gate block and paste it above
+        <code style="font-family:var(--mono);font-size:12px;background:var(--paper-2);padding:1px 4px;border:1px solid var(--rule)">if name == "fs.read"</code>.
+        Then verify.
+      </p>
+    </div>
+
+    <div class="editor">
+      <div class="editor-head">
+        <span class="fname">lab/broker.py</span>
+        <span>handle_tools_call</span>
+        <span class="task">edit in place</span>
+      </div>
+      <div class="code-wrap">
+        <div class="gutter" id="gutter"></div>
+        <textarea class="code-area" id="codeArea" spellcheck="false"></textarea>
+      </div>
+      <div class="editor-foot">
+        <button class="btn" id="verifyBtn">Verify the fix</button>
+        <button class="btn ghost sm" id="resetCodeBtn">Reset</button>
+        <span class="status" id="codeStatus">not verified</span>
+      </div>
+    </div>
+
+    <div class="checklist" id="checklist" style="display:none">
+      <div class="check" data-c="1"><span class="box">✓</span><span>the gate appears before the file I/O</span></div>
+      <div class="check" data-c="2"><span class="box">✓</span><span>the gate still tests <code>mode</code>, <code>escalate</code> and <code>grant</code></span></div>
+      <div class="check" data-c="3"><span class="box">✓</span><span>rejected requests return <code>-32002</code></span></div>
+      <div class="check" data-c="4"><span class="box">✓</span><span>the side effect is still reachable when granted</span></div>
+    </div>
+  `;
+
+  const ta = $('#codeArea');
+  ta.value = VULN_CODE;
+  syncGutter();
+  ta.addEventListener('input', syncGutter);
+
+  $('#resetCodeBtn').onclick = () => { ta.value = VULN_CODE; syncGutter(); resetChecks(); };
+  $('#verifyBtn').onclick = verifyFix;
+
+  setPrimary('Back to the audit', () => goStep3());
+}
+
+function syncGutter(){
+  const ta = $('#codeArea');
+  const n = ta.value.split('\n').length;
+  $('#gutter').textContent = Array.from({length:n}, (_,i)=>i+1).join('\n');
+}
+
+function resetChecks(){
+  $('#checklist').style.display = 'none';
+  $$('#checklist .check').forEach(c => c.classList.remove('pass','fail'));
+  $('#codeStatus').textContent = 'not verified';
+  $('#codeStatus').className = 'status';
+}
+
+function verifyFix(){
+  const code = $('#codeArea').value;
+  const lines = code.split('\n');
+
+  const gateIdx = lines.findIndex(l => /if\s+self\.mode\s*==\s*["']clean["']/.test(l));
+  const ioIdx   = lines.findIndex(l => /if\s+name\s*==\s*["']fs\.read["']/.test(l));
+
+  const gateLine = gateIdx >= 0 ? lines[gateIdx] : '';
+  const gateTests = /mode/.test(gateLine) && /escalate/.test(gateLine) && /grant/.test(gateLine);
+  const hasError  = code.includes('-32002');
+  const hasSideEffect = /if\s+escalate\s*:/.test(code) && /reload_service/.test(code);
+
+  const results = {
+    1: gateIdx >= 0 && ioIdx >= 0 && gateIdx < ioIdx,
+    2: gateTests,
+    3: hasError,
+    4: hasSideEffect
+  };
+
+  const list = $('#checklist');
+  list.style.display = 'flex';
+  let allPass = true;
+  Object.entries(results).forEach(([k, ok]) => {
+    const el = list.querySelector(`.check[data-c="${k}"]`);
+    el.classList.toggle('pass', ok);
+    el.classList.toggle('fail', !ok);
+    if(!ok) allPass = false;
+  });
+
+  const st = $('#codeStatus');
+  if(allPass){
+    st.textContent = 'gate moved · verified against clean mode';
+    st.className = 'status ok';
+    $('#sbs').classList.add('show');
+    setTimeout(finish, 600);
+  } else {
+    st.textContent = results[1] ? 'gate is in the right place, but something else is off'
+                                : 'gate still runs after the file I/O';
+    st.className = 'status bad';
+  }
+}
+
+/* ---------- finish ---------- */
+function finish(){
+  $('#summary').classList.add('show');
+
+  /* the ticket thread gains your comment */
+  const t = $('#thread');
+  t.classList.add('open');
+  $('#threadLabel').textContent = 'Hide comments';
+  $('#myComment').style.display = 'block';
+  $('#myCommentText').textContent =
+    'Root cause was the broker reading undeclared fields, not the agent having too much access. ' +
+    'Moved the elevation gate ahead of path resolution so a rejected request does no file I/O and ' +
+    'produces no side effect. Verified: same payload now returns -32002, generation stays at 1. ' +
+    'Follow-up filed to replace the header check with a session-bound capability token.';
+
+  $('#summary').scrollIntoView({behavior:'smooth', block:'nearest'});
+  setPrimary('Start over', () => reset());
+}
+
+/* ---------- copy ---------- */
+$('#copyBtn').onclick = async () => {
+  const txt = $('#summaryBody').innerText.trim();
+  try{
+    await navigator.clipboard.writeText(txt);
+    $('#copyBtn').textContent = 'Copied';
+    setTimeout(()=>$('#copyBtn').textContent='Copy', 1600);
+  }catch(e){ $('#copyBtn').textContent = 'Select manually'; }
+};
+
+/* ---------- reset ---------- */
+function reset(){
+  setStep(1);
+  showTab('term');
+  $('#qmount').innerHTML = '';
+  $('#fixMount').innerHTML = '';
+  $('#sbs').classList.remove('show');
+  $('#summary').classList.remove('show');
+  $('#auditBadge').style.display = 'none';
+  $('#auditCount').textContent = '';
+  $('#tabAudit').classList.add('disabled');
+  $('#auditList').innerHTML = '<div style="padding:28px;text-align:center;color:var(--ink-4);font-size:11.5px">Nothing yet. Run the agent first.</div>';
+  $('#myComment').style.display = 'none';
+  $('#thread').classList.remove('open');
+  $('#threadLabel').textContent = '3 comments';
+  goStep1();
+}
+
+/* ---------- wiring ---------- */
+$('#runBtn').onclick = runAgent;
+$$('.step').forEach(s => {
+  s.onclick = () => {
+    const v = +s.dataset.step;
+    if(v === 1) goStep1();
+    else if(v === 2) goStep2();
+    else if(v === 3 && step >= 2) goStep3();
+    else if(v === 4 && step >= 3) goStep4();
+  };
+});
+
+/* history recall */
+document.addEventListener('keydown', e => {
+  if(e.target.tagName === 'TEXTAREA') return;
+  if(e.key === 'ArrowUp' && history.length){
+    e.preventDefault();
+    histIdx = histIdx < 0 ? history.length - 1 : Math.max(0, histIdx - 1);
+    flashHistory(history[histIdx]);
+  }
+  if(e.key === 'ArrowDown' && histIdx >= 0){
+    e.preventDefault();
+    histIdx = Math.min(history.length - 1, histIdx + 1);
+    flashHistory(history[histIdx]);
+  }
+});
+function flashHistory(cmd){
+  const body = $('#termBody');
+  const el = document.createElement('span');
+  el.className = 'ln dim';
+  el.textContent = '$ ' + cmd;
+  const cur = body.querySelector('.cursor');
+  body.insertBefore(el, cur);
+  body.scrollTop = body.scrollHeight;
+}
+
+/* ---------- intro ---------- */
+$('#openBtn').onclick = () => {
+  $('#intro').style.display = 'none';
+  $('#app').style.display = 'block';
+  goStep1();
+};
+
+/* start */
+initTheme();
+</script>
+</body>
+</html>
