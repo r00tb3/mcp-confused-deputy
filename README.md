@@ -21,6 +21,12 @@ No dependencies. Python 3.10+, `python3 lab/broker.py`, done. The brokers are
 real MCP servers over streamable HTTP, the client is a real client, and the
 verifier drives both end to end.
 
+![The audit trail: a write carrying two undeclared fields, with a service reload nested underneath it](docs/img/03-audit.png)
+
+That is the whole finding in one screenshot. `req-000002` is a write. It
+declared `path` and `content`. It carried four fields, and the fourth one
+reloaded a service.
+
 ## Watch it happen
 
 Docker if you just want to look at it:
@@ -33,6 +39,28 @@ docker run --rm -p 8080:8080 -p 8765:8765 -p 8766:8766 \
 Then <http://localhost:8080> for the walkthrough. That one image runs three
 things: the walkthrough on 8080, a vulnerable broker on 8765, and a hardened one
 on 8766. Or `docker compose up --build` from a clone.
+
+It opens as a ticket, because that is how one of these actually reaches you:
+
+![The incident ticket, opened by Priya Raman](docs/img/01-intro.png)
+
+Four steps, gated, so you cannot skip to the answer: read the ticket, reproduce
+the reload, work out the cause, then write the fix. The last step drops you into
+the broker's dispatcher and asks you to move the elevation gate above the file
+I/O. It verifies four things, and refuses to move on until they hold:
+
+![The fix editor with four checks passing, and the vuln/clean comparison beneath it](docs/img/05-verified.png)
+
+The comparison at the bottom is the point of the whole exercise. Identical
+payload, identical timestamp, two policies: one reloads a service, the other
+rejects before it touches anything.
+
+<details>
+<summary>Dark mode</summary>
+
+![The same walkthrough in dark mode](docs/img/06-dark.png)
+
+</details>
 
 If you would rather read the code than click at it:
 
