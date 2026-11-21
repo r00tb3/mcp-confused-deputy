@@ -1,78 +1,60 @@
-# MCP confused deputy
+# mcp-confused-deputy
 
-A small MCP server that is wrong in one specific way, on purpose.
+A tool broker that reads arguments nobody gave it.
 
-An agent has read access to a workspace. It calls `fs.read` or `fs.write` and
-adds two fields the tool schema never declared: `escalate: true` and
-`escalation_note`. The broker takes them anyway, reloads a service, and records
-the reload against the same request. `service.reload` never appears in
-`tools/list`, so from the agent's side it read a file and nothing else happened.
+An agent is scoped to a workspace. It can read files and write files, and that is
+the whole of its authority: `fs.read`, `fs.write`, two entries in `tools/list`,
+nothing else. So it sends a write, and tucked in beside `path` and `content` are
+two fields the schema never declared: `escalate: true` and an
+`escalation_note`.
 
-That is the whole bug. Everything below is how to see it, and how to make it stop.
+The broker reads them anyway. It reloads a service on its own authority, then
+files the reload under the agent's request.
 
-The repo is a working lab: a real MCP server over streamable HTTP, a real MCP
-client, a verifier, and tests. Standard library only. Python 3.10+. Nothing to
-install.
+The agent never had reload permission. It didn't need it. That is the entire
+bug, and it is why this repo exists: a tool schema is documentation, not a fence,
+and the party holding the privilege is the broker, not the agent.
 
-## Run it
+Everything below is how to watch it happen and how to stop it.
 
-Two ways. Docker if you just want to look at it, source if you want to read it.
+No dependencies. Python 3.10+, `python3 lab/broker.py`, done. The brokers are
+real MCP servers over streamable HTTP, the client is a real client, and the
+verifier drives both end to end.
 
-### Docker
+## Watch it happen
+
+Docker if you just want to look at it:
 
 ```sh
 docker run --rm -p 8080:8080 -p 8765:8765 -p 8766:8766 \
   ghcr.io/r00tb3/mcp-confused-deputy
 ```
 
-Then open <http://localhost:8080>. One image runs three processes: the
-walkthrough on 8080, the vulnerable broker on 8765, and the clean broker on
-8766. No Python, no dependencies, nothing to install.
+Then <http://localhost:8080> for the walkthrough. That one image runs three
+things: the walkthrough on 8080, a vulnerable broker on 8765, and a hardened one
+on 8766. Or `docker compose up --build` from a clone.
 
-Or from a clone:
-
-```sh
-docker compose up --build
-```
-
-### From source
-
-Standard library only, Python 3.10+, nothing to install.
+If you would rather read the code than click at it:
 
 ```sh
-python3 lab/broker.py                 # vuln mode, http://127.0.0.1:8765
+python3 lab/broker.py                 # vuln, on :8765
 python3 lab/broker.py --mode clean    # same binary, different policy
-python3 lab/broker.py --port 0        # ephemeral port, prints the URL
 ```
 
-Drive it from a second terminal:
+and from a second terminal:
 
 ```sh
 python3 lab/agent.py --smuggle                                # against vuln
 python3 lab/agent.py --smuggle --grant lab-elevation-grant    # against clean
 ```
 
-Then read the audit trail:
-
-```sh
-curl -s http://127.0.0.1:8765/audit | python3 -m json.tool
-```
-
-The audit entries are `{req_id, ts, caller, tool, params, side_effects}`. Two
-details matter here. `req_id` is the broker's own counter, not the JSON-RPC
-`id`. And `caller` comes from an `X-Caller` header that the client sets itself,
-so it is recorded, not verified. If you are used to trusting either of those,
-this lab will annoy you.
-
-## What you should see
-
-Running the agent against a vuln broker, then dumping the audit:
+## The line that matters
 
 ```
 $ python3 lab/agent.py --smuggle
   [agent] tools/list -> ['fs.read', 'fs.write']
   [agent] fs.read welcome.md -> 505 bytes
-  [agent] fs.write notes/scratch.md -> wrote 24 bytes to notes/scratch.md
+  [agent] fs.write notes/scratch.md -> wrote 24 bytes
 
 $ curl -s http://127.0.0.1:8765/audit
   req-000001  fs.read  ['path']
@@ -80,39 +62,68 @@ $ curl -s http://127.0.0.1:8765/audit
               -> service.reload ok=True :: reloaded service configuration (generation 1)
 ```
 
-One `fs.write`, one reload, and the reload sits inside `req-000002` rather than
-appearing as a request of its own. That nesting is the point. It is the
-difference between "a reload happened" and "this write caused a reload".
+One write. One reload. And the reload sits *inside* `req-000002` rather than
+appearing as a request of its own.
 
-Against a clean broker the same payload dies before it touches anything:
+That nesting is the whole argument. If you log side effects as their own rows you
+get "a reload happened" and no way to say who asked for it. Keep them attached to
+the request that caused them and the trail survives contact with a question.
+
+Same payload against the clean broker, where the gate runs earlier:
 
 ```
 $ python3 verify/verify_priv_esc.py --mode clean
   [verify] traversal blocked: path escapes workspace: ../../broker.py
   [verify] rejected before execution: JSON-RPC error -32002: Elevation required
   [verify] side effects on the rejected request: none
-  PASS (clean): ...
 ```
 
-There is a recording of the whole thing in `demo/demo.cast`. Replay it with
-`asciinema play demo/demo.cast`, or just read the two blocks above, which say the
-same thing.
+Identical bytes. The file is never written and the service generation never
+moves.
 
-## The two modes
+There is an asciinema recording in `demo/demo.cast` if you want to watch it
+rather than read it, but the two blocks above are the same information.
+
+## Two modes, one difference
 
 | | `vuln` (default) | `clean` |
 |---|---|---|
 | Any client may call file tools | yes | yes |
-| `escalate: true` smuggled onto `fs.read`/`fs.write` | honoured | rejected |
+| `escalate: true` on a file call | honoured | rejected |
 | What elevation needs | nothing; a grant header is ignored | `X-Elevation-Grant: <token>` |
 | Where the decision is made | in the dispatcher, after the tool runs | before path resolution and file I/O |
-| What a rejection looks like | n/a | JSON-RPC `-32002`, no file I/O, no side effect |
-| Audit | side effect under the original `req_id` | a rejected row, empty side effects |
+| What a rejection looks like | n/a | `-32002`, no file I/O, no side effect |
+| Audit | side effect under the original `req_id` | rejected row, empty side effects |
 
-The elevation gate is the only behavioural difference. Path traversal is
-rejected in both modes, before any filesystem access.
+Path traversal is rejected in both modes, before anything touches the disk. The
+elevation gate is the only behavioural difference, which is the point. The
+attack is unchanged, only the placement of the check moves.
 
-## Verifier and tests
+## The awkward parts
+
+The company, the service and the grant token are invented. `DESIGN.md` names the
+public prior art this class is modelled on and is explicit about where the
+similarity stops, because "inspired by a real incident" is a claim people
+overreach on.
+
+MCP itself is fine here. The protocol is implemented properly. The bug lives in
+the broker's argument handling and in where it puts the authorization check.
+
+The header gate is a stopgap and I would not defend it. It binds nothing: not a
+session, not a subject, not a resource, not a lifetime. Anyone who can send the
+header is elevated. `THREAT-MODEL.md` works through what a real capability token
+would have to do instead.
+
+Nothing here tricks an agent with text. The agent sends the extra fields
+deliberately, because it is a lab and the agent is on our side. Tool-description
+poisoning, where the *description* of a benign tool carries the injection, is a
+different class, written up in `EXTENSIONS.md` but not implemented.
+
+The broker is threaded and keeps its audit log in memory, so a restart loses the
+trail. No TLS, no caller auth, no rate limits. It binds to loopback and expects
+one person to run it locally. It is a lab, not a service.
+
+## Verifying
 
 ```sh
 python3 verify/verify_priv_esc.py --mode vuln    # exit 0: escalation achieved
@@ -120,112 +131,49 @@ python3 verify/verify_priv_esc.py --mode clean   # exit 1: escalation blocked
 python3 -m unittest discover -s tests -v          # 36 tests
 ```
 
-The exit codes are inverted on purpose: 0 means "the bug reproduced", which is
-what you want when you are proving a vulnerability rather than testing a
-feature. `make verify` handles both and tells you which it expected. If you are
-wiring this into CI and want 0 for both, that is a one-line change at
+The exit codes are inverted deliberately. Zero means "the bug reproduced", which
+is what you want when you are proving a vulnerability rather than testing a
+feature. `make verify` runs both and tells you which it expected. If you are
+wiring this into CI and would rather have zero for both, change
 `EXPECTED_ESCALATION_EXIT` in the verifier.
 
 `make demo`, `make verify` and `make test` wrap the commands above.
 
-## The protocol
+## Protocol notes
 
-`POST /mcp` speaks JSON-RPC 2.0 over MCP's streamable HTTP transport.
+`POST /mcp`, JSON-RPC 2.0, streamable HTTP.
 
 `initialize` returns `protocolVersion`, `capabilities.tools` and `serverInfo`,
-and sets `Mcp-Session-Id`. `notifications/initialized` comes back `202` with an
-empty body. `tools/list` returns `fs.read` and `fs.write`, and nothing else.
-`service.reload` is not callable by name even in vuln mode. It only exists as a
-side effect of a file call, which is why nobody notices it.
-
-`tools/call` returns `{"content":[{"type":"text","text":...}], "isError": false}`.
+and sets `Mcp-Session-Id`. `notifications/initialized` gets a `202` and an empty
+body. `tools/list` returns `fs.read` and `fs.write` and nothing else, and
+`service.reload` is not callable by name even in vuln mode, which is precisely
+why nobody notices it.
 
 Send `Accept: application/json, text/event-stream` and you get SSE back:
 `Content-Type: text/event-stream`, `event: message`, `data: <json>`, blank line.
-Send `Accept: application/json` alone and you get plain JSON. This is real
-framing, not a JSON body with an SSE header bolted on, so `mcp-inspector` and
-anything else that speaks the transport will talk to it.
+Send `Accept: application/json` alone and you get plain JSON. Real framing, not
+a JSON body wearing an SSE header, so `mcp-inspector` and anything else that
+speaks the transport will talk to it.
 
-Errors use the standard codes: `-32700` parse, `-32600` invalid request,
+Standard error codes throughout: `-32700` parse, `-32600` invalid request,
 `-32601` method not found, `-32602` invalid params, `-32603` internal. `-32002`
-is this lab's elevation-required error and is not a standard MCP code.
+is this lab's elevation-required error and is not part of MCP.
 
-## What it proves
-
-**A tool schema is not an authorization boundary.** `fs.write` declares `path`
-and `content`. The dispatcher reads `arguments["escalate"]` anyway, because
-nothing strips undeclared fields on the way in. If you have ever assumed that a
-declared schema is enforced by the transport, this is the counterexample.
-
-**The deputy is the broker, not the agent.** The broker holds the privilege to
-reload the service. The agent holds a file scope. When the broker honours the
-agent's extra field it acts with its own authority and bills the result to the
-agent's request. The agent never had the privilege and never needed it.
-
-**Causality is visible if you record it.** The reload is a `side_effect` of
-`req-000002`, not a row of its own. Log the side effect separately and the trail
-goes cold: you can see that a reload happened, but not which request asked for
-it.
-
-**A gate changes the outcome, not the payload.** Clean mode sees the identical
-bytes and rejects them before path resolution. Same attack, different placement
-of the check.
-
-## What it does not prove
-
-Not a reproduction of any real incident. The company, the service and the token
-are invented. `DESIGN.md` names the public prior art this class is modelled on
-and says plainly where the similarity stops.
-
-Not a claim about MCP. The protocol is implemented correctly. The bug is in the
-broker's argument handling and in where it puts the authorization check.
-
-Not a complete authorization model. A header check is a simplification. It binds
-nothing: not a session, not a subject, not a resource, not a lifetime. Anyone who
-can send the header is elevated. `THREAT-MODEL.md` covers what a real capability
-token would have to do instead.
-
-Not a prompt-injection demo. Nothing here tricks an agent with text. The agent
-sends the extra fields deliberately, because it is a lab and the agent is on our
-side. Tool-description poisoning is a separate class, written up in
-`EXTENSIONS.md` but not implemented.
-
-Not a concurrency or performance study. The broker is threaded and keeps its
-audit log in memory. Restart it and the log is gone.
-
-Not hardened. No TLS, no caller authentication, no rate limits, no persistence.
-It binds to loopback and expects to be run locally by one person.
-
-## Layout
+## What's where
 
 ```
-README.md
-LICENSE
-DESIGN.md
-THREAT-MODEL.md
-EXTENSIONS.md
-Makefile
-Dockerfile
-docker-compose.yml
-docker/
-  entrypoint.sh        starts both brokers and the UI, supervises them
-  healthcheck.py       both brokers answer /health, the UI serves a page
-demo/
-  demo.cast            asciinema recording of the run below
-lab/
-  broker.py            MCP streamable-HTTP server, both modes, audit
-  agent.py             minimal MCP client and demo driver
-  workspace/           sandbox fixtures (welcome.md, runbook.md, notes/scratch.md)
-  state/               service-state.json appears here after a reload
-web-mock/
-  index.html           the four-step walkthrough, static
-verify/
-  verify_priv_esc.py   end-to-end verifier, exit 0/1 semantics
-tests/
-  test_broker.py       protocol, traversal, both modes, causality
+lab/broker.py        the MCP server, both modes, the audit log
+lab/agent.py         a minimal MCP client and the demo driver
+lab/workspace/       the sandbox the tools are allowed to touch
+verify/              end-to-end verifier, exit 0/1 semantics
+tests/               36 tests: protocol, traversal, both modes, causality
+web-mock/            the four-step walkthrough, static HTML
+docker/              entrypoint and healthcheck for the three-process image
+DESIGN.md            the incident this models, and the prior art
+THREAT-MODEL.md      what the header gate does and does not buy you
+EXTENSIONS.md        tool-description poisoning, documented but not built
 ```
 
-## Vocabulary
-
-It is a lab. `lab/broker.py` is the broker. The files under `lab/workspace/` are
-fixtures. Nothing here is a product, a target, or anyone's deployment.
+The names are literal. `lab/broker.py` is the broker, the files under
+`lab/workspace/` are fixtures, and nothing here is a product or anybody's
+deployment.
