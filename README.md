@@ -1,5 +1,7 @@
 # mcp-confused-deputy
 
+![The opening screen: an incident ticket you have inherited](docs/img/01-intro.png)
+
 A tool broker that reads arguments nobody gave it.
 
 An agent is scoped to a workspace. It can read files and write files, and that is
@@ -21,12 +23,6 @@ No dependencies. Python 3.10+, `python3 lab/broker.py`, done. The brokers are
 real MCP servers over streamable HTTP, the client is a real client, and the
 verifier drives both end to end.
 
-![The audit trail: a write carrying two undeclared fields, with a service reload nested underneath it](docs/img/03-audit.png)
-
-That is the whole finding in one screenshot. `req-000002` is a write. It
-declared `path` and `content`. It carried four fields, and the fourth one
-reloaded a service.
-
 ## Watch it happen
 
 Docker if you just want to look at it:
@@ -40,10 +36,7 @@ Then <http://localhost:8080> for the walkthrough. That one image runs three
 things: the walkthrough on 8080, a vulnerable broker on 8765, and a hardened one
 on 8766. Or `docker compose up --build` from a clone.
 
-It opens as a ticket, because that is how one of these actually reaches you:
-
-![The incident ticket, opened by Priya Raman](docs/img/01-intro.png)
-
+It opens as a ticket, because that is how one of these actually reaches you.
 Four steps, gated, so you cannot skip to the answer: read the ticket, reproduce
 the reload, work out the cause, then write the fix. The last step drops you into
 the broker's dispatcher and asks you to move the elevation gate above the file
@@ -92,6 +85,8 @@ $ curl -s http://127.0.0.1:8765/audit
 
 One write. One reload. And the reload sits *inside* `req-000002` rather than
 appearing as a request of its own.
+
+![The same thing in the walkthrough: four params on a write, and a reload nested under it](docs/img/03-audit.png)
 
 That nesting is the whole argument. If you log side effects as their own rows you
 get "a reload happened" and no way to say who asked for it. Keep them attached to
