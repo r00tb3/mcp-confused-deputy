@@ -16,6 +16,29 @@ install.
 
 ## Run it
 
+Two ways. Docker if you just want to look at it, source if you want to read it.
+
+### Docker
+
+```sh
+docker run --rm -p 8080:8080 -p 8765:8765 -p 8766:8766 \
+  ghcr.io/r00tb3/mcp-confused-deputy
+```
+
+Then open <http://localhost:8080>. One image runs three processes: the
+walkthrough on 8080, the vulnerable broker on 8765, and the clean broker on
+8766. No Python, no dependencies, nothing to install.
+
+Or from a clone:
+
+```sh
+docker compose up --build
+```
+
+### From source
+
+Standard library only, Python 3.10+, nothing to install.
+
 ```sh
 python3 lab/broker.py                 # vuln mode, http://127.0.0.1:8765
 python3 lab/broker.py --mode clean    # same binary, different policy
@@ -182,6 +205,11 @@ DESIGN.md
 THREAT-MODEL.md
 EXTENSIONS.md
 Makefile
+Dockerfile
+docker-compose.yml
+docker/
+  entrypoint.sh        starts both brokers and the UI, supervises them
+  healthcheck.py       both brokers answer /health, the UI serves a page
 demo/
   demo.cast            asciinema recording of the run below
 lab/
@@ -189,6 +217,8 @@ lab/
   agent.py             minimal MCP client and demo driver
   workspace/           sandbox fixtures (welcome.md, runbook.md, notes/scratch.md)
   state/               service-state.json appears here after a reload
+web-mock/
+  index.html           the four-step walkthrough, static
 verify/
   verify_priv_esc.py   end-to-end verifier, exit 0/1 semantics
 tests/

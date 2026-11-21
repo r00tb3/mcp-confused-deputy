@@ -1,0 +1,26 @@
+# Optional convenience wrapper. The image already runs all three processes.
+#
+#   docker compose up --build
+#   open http://localhost:8080
+#
+# Ports are mapped to the same numbers the UI expects, so the walkthrough and
+# the brokers agree on 8765/8766 without configuration.
+
+services:
+  lab:
+    build: .
+    image: mcp-confused-deputy:latest
+    ports:
+      - "8080:8080"
+      - "8765:8765"
+      - "8766:8766"
+    environment:
+      # token the clean broker accepts in X-Elevation-Grant
+      GRANT_TOKEN: lab-elevation-grant
+    healthcheck:
+      test: ["CMD", "python3", "/lab/docker/healthcheck.py"]
+      interval: 15s
+      timeout: 3s
+      start_period: 5s
+      retries: 3
+    restart: unless-stopped
