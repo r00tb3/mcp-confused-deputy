@@ -5,3 +5,4 @@ run/
 
 # Playwright scratch output from demo/record-walkthrough.py
 demo/_video/
+demo/walkthrough-opt.webm

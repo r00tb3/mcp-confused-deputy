@@ -134,7 +134,31 @@ def main():
         ctx.close()
         browser.close()
 
-    print("raw video:", video)
+    # Playwright writes a near-lossless webm; VP9 at CRF 34 is ~4.5x smaller and
+    # still sharp on text. Falls back to the raw file if ffmpeg is missing.
+    raw = Path(video)
+    final = OUT / "walkthrough.webm"
+    try:
+        import subprocess
+
+        import imageio_ffmpeg
+
+        subprocess.run(
+            [imageio_ffmpeg.get_ffmpeg_exe(), "-hide_banner", "-loglevel", "error",
+             "-i", str(raw), "-c:v", "libvpx-vp9", "-crf", "34", "-b:v", "0",
+             "-row-mt", "1", "-cpu-used", "2", "-an", str(final), "-y"],
+            check=True,
+        )
+        print("encoded:", final, f"{final.stat().st_size / 1048576:.1f} MB")
+    except Exception as exc:  # noqa: BLE001 - any failure should still leave a video
+        print(f"encode skipped ({exc}); raw file at {raw}")
+    finally:
+        for leftover in (OUT / "_video").glob("*.webm"):
+            leftover.unlink(missing_ok=True)
+        try:
+            (OUT / "_video").rmdir()
+        except OSError:
+            pass
 
 
 if __name__ == "__main__":
