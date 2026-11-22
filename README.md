@@ -40,13 +40,22 @@ It opens as a ticket, because that is how one of these actually reaches you.
 Four steps, gated, so you cannot skip to the answer: read the ticket, reproduce
 the reload, work out the cause, then write the fix. The last step drops you into
 the broker's dispatcher and asks you to move the elevation gate above the file
-I/O. It verifies four things, and refuses to move on until they hold:
+I/O. It verifies four things, and refuses to move on until they hold.
 
-![The fix editor with four checks passing, and the vuln/clean comparison beneath it](docs/img/05-verified.png)
+https://github.com/r00tb3/mcp-confused-deputy/raw/main/demo/walkthrough.webm
+
+<video src="demo/walkthrough.webm" controls muted playsinline width="100%"></video>
+
+Eighty-eight seconds, no cuts: the intro, the agent running against the real
+broker, the audit trail, the three questions, and the fix going green. Recorded
+by `demo/record-walkthrough.py`; re-run it if the UI changes. If the player does
+not render, [open the file directly](demo/walkthrough.webm).
 
 The comparison at the bottom is the point of the whole exercise. Identical
 payload, identical timestamp, two policies: one reloads a service, the other
-rejects before it touches anything.
+rejects before it touches anything:
+
+![The fix editor with four checks passing, and the vuln/clean comparison beneath it](docs/img/05-verified.png)
 
 <details>
 <summary>Dark mode</summary>

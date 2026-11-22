@@ -2,3 +2,6 @@ __pycache__/
 *.pyc
 lab/state/service-state.json
 run/
+
+# Playwright scratch output from demo/record-walkthrough.py
+demo/_video/
