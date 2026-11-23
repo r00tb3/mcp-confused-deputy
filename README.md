@@ -42,14 +42,12 @@ the reload, work out the cause, then write the fix. The last step drops you into
 the broker's dispatcher and asks you to move the elevation gate above the file
 I/O. It verifies four things, and refuses to move on until they hold.
 
-https://github.com/r00tb3/mcp-confused-deputy/raw/main/demo/walkthrough.webm
-
-<video src="demo/walkthrough.webm" controls muted playsinline width="100%"></video>
+[![The four-step walkthrough, 88 seconds](docs/img/01-intro.png)](demo/walkthrough.webm)
 
 Eighty-eight seconds, no cuts: the intro, the agent running against the real
-broker, the audit trail, the three questions, and the fix going green. Recorded
-by `demo/record-walkthrough.py`; re-run it if the UI changes. If the player does
-not render, [open the file directly](demo/walkthrough.webm).
+broker, the audit trail, the three questions, and the fix going green. Click the
+frame to play it. Recorded by `demo/record-walkthrough.py`; re-run it if the UI
+changes.
 
 The comparison at the bottom is the point of the whole exercise. Identical
 payload, identical timestamp, two policies: one reloads a service, the other
